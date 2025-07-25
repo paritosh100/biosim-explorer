@@ -1,3 +1,6 @@
+// Type representing both FASTA and CSV parsed formats
+export type ParsedSequence = { header: string; sequence: string } | Record<string, string>;
+
 export function calculateGC(sequence: string): number {
   if (!sequence) return 0;
   const gc = (sequence.match(/[GC]/gi) || []).length;
@@ -10,7 +13,7 @@ export function calculateNContent(sequence: string): number {
   return (nCount / sequence.length) * 100;
 }
 
-export function getSequenceStats(data: any[]): {
+export function getSequenceStats(data: ParsedSequence[]): {
   total: number;
   avgLength: number;
   minLength: number;
@@ -22,14 +25,17 @@ export function getSequenceStats(data: any[]): {
     return { total: 0, avgLength: 0, minLength: 0, maxLength: 0 };
   }
 
-  const isFasta = data[0].sequence !== undefined;
+  const isFasta = "sequence" in data[0];
 
-  let lengths: number[] = [];
+  const lengths: number[] = [];
   let gcSum = 0;
   let nSum = 0;
 
   data.forEach((item) => {
-    const seq = isFasta ? item.sequence : Object.values(item)[0]; // CSV: first column
+    const seq = isFasta
+      ? (item as { sequence: string }).sequence
+      : Object.values(item as Record<string, string>)[0];
+
     lengths.push(seq.length);
 
     if (isFasta) {
@@ -51,4 +57,9 @@ export function getSequenceStats(data: any[]): {
     avgGC: isFasta ? parseFloat((gcSum / total).toFixed(2)) : undefined,
     avgN: isFasta ? parseFloat((nSum / total).toFixed(2)) : undefined,
   };
+}
+
+export function getGCValues(data: ParsedSequence[]): number[] {
+  if (!data.length || !("sequence" in data[0])) return [];
+  return (data as { sequence: string }[]).map((item) => calculateGC(item.sequence));
 }
